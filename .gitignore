@@ -1,0 +1,32 @@
+# Test output and debugger scratch files: kept locally, never committed
+logs/*
+!logs/.gitkeep
+
+# Personal Claude Code settings and local-only agent memory
+.claude/settings.local.json
+.claude/agent-memory-local/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Common dependency folders, build output and caches
+node_modules/
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+coverage/
+.coverage
+dist/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Telegram connector state (read position, questions asked); local only
+managers/*/telegram/

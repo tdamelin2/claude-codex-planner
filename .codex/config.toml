@@ -1,0 +1,42 @@
+# Project config for the Codex manager.
+# Codex loads this file only after you trust this folder (it asks the first time
+# you run codex here).
+#
+# Codex may read the whole project but write only in managers/codex/.
+# It may not read Claude's plans, so the two plans stay independent. Its two
+# helpers (phase_researcher and phase_reviewer in .codex/agents/) are subagents:
+# they inherit these permissions, because a custom agent file can't change
+# sandbox or approval settings. They run one after the other, never together.
+
+default_permissions = "codex-planner"
+approval_policy = "on-request"
+
+# The researcher looks things up on the web (official docs, libraries).
+# "live" fetches current pages; "cached" is the default and uses an index.
+# Root keys like this one must stay above the [tables] below.
+web_search = "live"
+
+[agents]
+max_concurrent_threads_per_session = 1
+
+[permissions.codex-planner]
+description = "Planning only: read the project, write only managers/codex/."
+extends = ":read-only"
+
+[permissions.codex-planner.filesystem.":workspace_roots"]
+"managers/codex" = "write"
+"managers/claude" = "deny"
+".env" = "deny"
+".env.*" = "deny"
+
+# Telegram connector (questions about the plan; see .agents/roles/liaison.md).
+# It reads the bot tokens from Windows user settings; they are never shown to Codex.
+[mcp_servers.telegram]
+command = "node"
+args = ["scripts/telegram/telegram-mcp.mjs", "--role", "codex"]
+env_vars = ["TG_CLAUDE_TOKEN", "TG_CODEX_TOKEN", "TG_GROUP_ID"]
+startup_timeout_sec = 30
+# tg_wait_questions may wait up to 300 seconds per call.
+tool_timeout_sec = 360
+enabled_tools = ["tg_check", "tg_wait_questions", "tg_answer"]
+default_tools_approval_mode = "auto"
