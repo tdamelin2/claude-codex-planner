@@ -1,13 +1,3 @@
 {
-  "mcpServers": {
-    "telegram": {
-      "type": "stdio",
-      "command": "node",
-      "args": [
-        "scripts/telegram/telegram-mcp.mjs",
-        "--role",
-        "claude"
-      ]
-    }
-  }
+  "mcpServers": {}
 }

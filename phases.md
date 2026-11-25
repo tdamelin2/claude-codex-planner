@@ -1,30 +1,23 @@
 # Phases
 
-You write this file. The manager reads only the section for the phase being
-started. Copy the template below once per phase, replace N with the phase number
-(for example `## Phase 1: Login`), and replace every `<fill in>` before running
-`/start`.
+Write one section per phase, in order. The managers read only the section for the
+phase they're working on. Each acceptance criterion should be something a test or
+a command can check.
 
-Each acceptance criterion should be one checkable statement with a clear expected
-result. The tester writes its tests from these criteria alone, so anything left
-vague here becomes a question in the plan.
-
-<!-- Template: copy from here
-## Phase N: <fill in: name>
+## Phase 1: <fill in a short name>
 
 ### Goal
-<fill in: what this phase delivers, in one or two sentences>
+<fill in: one or two sentences on what this phase delivers.>
 
 ### Requirements
 - <fill in>
 
 ### Acceptance criteria
-- AC-1: <fill in: e.g. "GET /users returns 200 and a JSON list of users">
-- AC-2: <fill in>
+- AC-1 <fill in: something a test or command can check>
+- AC-2 <fill in>
 
 ### Depends on
-<fill in: earlier phases or outside services this phase needs, or "none">
+<fill in: earlier phases this builds on, or "nothing">
 
 ### Notes
-<fill in: anything else the manager should know, or "none">
-to here -->
+<fill in: anything else the managers should know, or "none">

@@ -30,6 +30,10 @@ approves the summary in Step 4. The one exception: in the planning stages
 - If a phase number was given, use it.
 - Otherwise, use the highest phase that has a `managers/claude/plans/phase-N/`
   folder or a `handoffs/phase-N.md` whose Status is not `Stage: Done`.
+- If the chosen phase (or, when no phase is unfinished, the newest phase) is
+  `Stage: Done` and has a `phase-N-done` tag but no `phase-N-notes` tag, its cleanup
+  is unfinished: run `<procedure>` step 8 for it without asking, tell the user it's done
+  and that they can now start the next phase, then stop.
 - If no phase is unfinished, tell the user and stop. Suggest starting the next phase with
   `.\scripts\start-phase.ps1 -Phase <next>`.
 
@@ -37,7 +41,7 @@ approves the summary in Step 4. The one exception: in the planning stages
 | Case | Stage |
 |---|---|
 | No `handoffs/phase-N.md`, no `managers/claude/plans/phase-N/DONE` | P1: your own plan is unfinished |
-| No `handoffs/phase-N.md`, your DONE exists | P2: gate (and then the integrity check and merge) |
+| No `handoffs/phase-N.md`, your DONE exists | P2: gate, then the integrity check and the merge by Codex |
 | `handoffs/phase-N.md` with `Stage: Approval` | P3: waiting for the user's approval |
 | `handoffs/phase-N.md` with any other Stage | That Stage, as in the table in Step 5 |
 
@@ -45,7 +49,7 @@ approves the summary in Step 4. The one exception: in the planning stages
 Read these, in this order:
 1. `Overview.md`: the project's goal and architecture.
 2. `phases.md`: only the section for Phase N.
-3. `.agents/roles/plan-format.md` if the stage is P1 to P3.
+3. `.agents/roles/plan-format.md` if the stage is P1 to P3, and `Environment.md`.
 4. `handoffs/phase-N.md` if it exists: the Status line, the Plan, every
    `### Plan note` and `### Contract change`, and the latest Round.
 5. `.claude/agent-memory/manager/MEMORY.md`: the Lessons section and the latest Log
@@ -83,7 +87,11 @@ End your turn with: "Reply 'go' to continue, or tell me what to change."
   `<planning>` in `manager.md` from step 1. Stay blind until your DONE exists.
 - **P2**: follow `<planning>` from step 2 (the gate). The wait script remembers when
   the gate started, so a gate that already timed out exits 4 at once and you ask
-  the user as usual.
+  The user as usual. If `managers/codex/plans/phase-N/MERGED` or your `SKIP-codex-merge`
+  already exists, skip to step 5. If a merge call was started, running the merge
+  command again reattaches to it instead of starting a second Codex.
+- **After Done**: if the phase has a `phase-N-done` tag but no `phase-N-notes` tag,
+  run `<procedure>` step 8 (Cleanup) without asking.
 - **P3**: show the user the approval summary again (`<planning>` step 7) and wait for
   "go".
 - **After P3**, once the user approves:
@@ -94,7 +102,9 @@ End your turn with: "Reply 'go' to continue, or tell me what to change."
     restore them and resend the task.
   - Append to `phase-N.md` only. Never edit earlier rounds.
   - If the user changed the plan, record the change as a `### Plan note` in the current
-    round.
+    round (`Decided by the user`).
+  - An ask in `managers/shared/phase-N/asks.md` with no answer file yet was
+    interrupted: run its decide call again (it reattaches or restarts).
   - Then continue the phase loop in `manager.md` from the step that matches the
     Stage:
 

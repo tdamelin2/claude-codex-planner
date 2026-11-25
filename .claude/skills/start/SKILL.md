@@ -56,10 +56,18 @@ Read these, in this order:
 4. `.agents/roles/plan-format.md`: the plan format both managers use.
 5. `.claude/agent-memory/manager/MEMORY.md`: the Lessons section and the latest Log
    entries.
-6. `Questions.md`, and the Summary section of the previous phase's handoff file, if
+6. The shared notes: Codex's Lessons from the notes tag (`<shared_notes>` in
+   `manager.md`), and `Environment.md` if it exists.
+7. `Questions.md`, and the Summary section of the previous phase's handoff file, if
    there is one.
 
-Don't open anything under `managers/codex/` yet.
+Don't open anything under `managers/codex/` in the working copy yet (read Codex's
+notes only from the tag), and never open `archive/`.
+
+If the previous phase has a `phase-<N-1>-done` tag but no `phase-<N-1>-notes` tag,
+its cleanup didn't run. The launcher normally stops before this happens, because
+Codex is already reading the notes. Stop and tell the user to close both tabs and run
+`.\scripts\start-phase.ps1 -Phase <N-1> -Continue` first.
 
 ## Step 3: Check the phase spec
 List anything in the phase spec that blocks a clear plan:
@@ -69,9 +77,10 @@ List anything in the phase spec that blocks a clear plan:
 Put each one in your plan's Questions table. Don't guess.
 
 ## Step 4: Run the planning steps
-Follow `<planning>` in `manager.md`, steps 1 to 7: your own plan and DONE, the
-gate, the integrity check, reading the plans, the merge, the questions, and the
-approval summary. End your turn at step 7 with:
+Follow `<planning>` in `manager.md`, steps 1 to 7: your own plan with
+claude-researcher and claude-reviewer, and DONE; the gate; the integrity check; the
+merge by Codex; the handoff and questions; the reality checks; and the approval
+summary. End your turn at step 7 with:
 "Reply 'go' to start building, or tell me what to change."
 
 ## Step 5: After the user approves

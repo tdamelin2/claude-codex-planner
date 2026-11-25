@@ -3,8 +3,9 @@
 #   Tab "Claude": claude --agent manager "/start N claude"
 #   Tab "Codex" : codex '$start N codex'
 #
-# The Codex tab stays open after its plan is done: it answers Claude's Telegram
-# questions about its plan until Claude closes the question window.
+# The Codex tab plans the phase and ends when its plan is DONE. Claude later starts
+# Codex by itself (scripts/codex-call.ps1) to merge the plans and to decide plan
+# changes, so no Codex tab stays open.
 #
 # Usage (from the project folder, in PowerShell):
 #   .\scripts\start-phase.ps1 -Phase 3              new phase: both tabs
@@ -88,6 +89,18 @@ if (-not $Continue) {
     if ($outside.Count -gt 0) {
         Stop-Launch ("there are unsaved changes. Save them first with: git add -A; git commit -m `"before phase $Phase`"`n  Changed: " + (($outside | Select-Object -First 5) -join ', '))
     }
+    # Both managers read the shared notes from the previous phase's notes tag, so its
+    # cleanup must be finished before either tab opens.
+    if ($Phase -gt 1) {
+        $prev = $Phase - 1
+        $ErrorActionPreference = 'Continue'
+        $doneTag = @(& git tag --list "phase-$prev-done" 2>$null)
+        $notesTag = @(& git tag --list "phase-$prev-notes" 2>$null)
+        $ErrorActionPreference = 'Stop'
+        if ($doneTag.Count -gt 0 -and $notesTag.Count -eq 0) {
+            Stop-Launch "phase $prev's notes haven't been tidied yet (its cleanup step). Run this first, and wait until Claude says the cleanup is done: .\scripts\start-phase.ps1 -Phase $prev -Continue"
+        }
+    }
     if ((Test-Path -LiteralPath $handoff) -or (Test-Path -LiteralPath $claudePlans) -or
         (Test-Path -LiteralPath (Join-Path $root "managers/codex/plans/phase-$Phase"))) {
         Stop-Launch "phase $Phase has already been started. To pick it up again, run: .\scripts\start-phase.ps1 -Phase $Phase -Continue"
@@ -98,12 +111,12 @@ if (-not $Continue) {
 # Decide which tabs to open.
 # ---------------------------------------------------------------------------
 $tabs = @('claude')
-$planningOver = Test-Path -LiteralPath $handoff   # the merge has happened
-# Codex is needed until the merge: first to plan, then (after its DONE file) as
-# the Telegram liaison answering Claude's questions about its plan.
+# The Codex tab is needed only until its plan is DONE. After that, Claude runs
+# Codex by itself for the merge and for decisions.
 foreach ($ai in @('codex')) {
     if (-not $Continue) { $tabs += $ai; continue }
-    if ($planningOver) { continue }
+    if (Test-Path -LiteralPath $handoff) { continue }
+    if (Test-Path -LiteralPath (Join-Path $root "managers/$ai/plans/phase-$Phase/DONE")) { continue }
     if (Test-Path -LiteralPath (Join-Path $claudePlans "SKIP-$ai")) { continue }
     $tabs += $ai
 }
@@ -129,7 +142,7 @@ $mode = 'Starting'
 if ($Continue) { $mode = 'Resuming' }
 Write-Host "$mode phase $Phase. Opening: $(($tabs | ForEach-Object { $titles[$_] }) -join ', ')." -ForegroundColor Cyan
 if ($Continue -and $tabs.Count -eq 1) {
-    Write-Host 'The plans are already merged, so Codex has nothing left to do. Only Claude opens.' -ForegroundColor Cyan
+    Write-Host 'The Codex plan is already finished, so only Claude opens. Claude starts Codex by itself when it needs it.' -ForegroundColor Cyan
 }
 # Quote each argument that contains spaces, so folder paths with spaces survive.
 $argString = ($wtArgs | ForEach-Object {

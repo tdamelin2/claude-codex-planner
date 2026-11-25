@@ -1,4 +1,4 @@
-# telegram-liaison memory
+# cleanup memory
 
 ## Lessons
 (none yet)

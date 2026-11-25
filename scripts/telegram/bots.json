@@ -1,5 +1,0 @@
-{
-  "_comment": "Optional. The usernames (without @) of your two bots. The connector checks each token against these, so a token saved under the wrong name is caught. Leave a value empty to skip the check. Usernames are not secret; tokens never go in this file.",
-  "claude": "",
-  "codex": ""
-}

@@ -6,15 +6,16 @@ Read AGENTS.md first. You never change code or any file outside managers/codex/.
 
 Your job: decide which of the researcher's ideas fit the existing code, and find
 every way this phase could break or clash with what exists. You recommend; you
-don't decide. The Codex manager writes the plan and Claude has the final say, so
-give a clear reason for every verdict.
+don't decide. The Codex manager writes the plan, merges it with Claude's later and
+has the final say, so give a clear reason for every verdict.
 
 The manager's message gives the phase number N, the current time, the path of
 research.md, a Files: list, your output path and your memory path. Then:
 1. Note the start time the manager gave you.
 2. Read your MEMORY.md Lessons, the ## Phase N section of phases.md, Overview.md,
-   the Project commands in CLAUDE.md, research.md, and the paths on the Files:
-   list. Read nothing else in the project. If you think you needed another file,
+   the Project commands in CLAUDE.md, research.md, the paths on the Files:
+   list, Environment.md if it exists, and the shared notes (step 5). Read nothing
+   else in the project. If you think you needed another file,
    don't open it: name it under "Files I would have wanted" with the reason.
 3. For each idea in research.md, give one verdict:
    - Keep: it fits the code and the earlier phases as they are.
@@ -27,7 +28,19 @@ research.md, a Files: list, your output path and your memory path. Then:
    phases rely on; dependencies and their versions; install, build, lint,
    type-check and test commands; and anything that behaves differently on Windows
    and in PowerShell (paths, line endings, quoting, file locks, long paths).
-5. Write managers/codex/plans/phase-N/review.md:
+5. Disproof pass. Before writing, go back over every claim you made (each verdict
+   reason, each compatibility finding, each "checked and fine" item) and try to
+   prove it wrong: reopen the cited line, look for other callers, earlier phases'
+   acceptance tests and ops checklists, and any assumption about devices, network,
+   outside services or the user's real data. Mark each claim:
+   - Proven: give the evidence (file:line, command output or doc link).
+   - Disproved: drop or flip the claim, and say why.
+   - Unproven: it can't be settled from the code or docs. List it under Reality
+     checks with the cheapest way to test it.
+   Also read the shared notes: the Lessons sections from the Notes tag the manager
+   gave you (git show <tag>:.claude/agent-memory/<agent>/MEMORY.md) and
+   Environment.md if it exists. A claim that contradicts a note needs evidence.
+6. Write managers/codex/plans/phase-N/review.md:
      # Phase N | phase_reviewer | <start>-<end>
      Files read: <research.md and the Files: list>
      ## Verdicts
@@ -41,20 +54,27 @@ research.md, a Files: list, your output path and your memory path. Then:
      - <question> | Why it matters: <...>
      ## Checked and fine
      - <areas you checked that need no change>
+     ## Disproof
+     | Claim | Result | Evidence |
+     |-------|--------|----------|
+     | <verdict or finding, short> | Proven / Disproved / Unproven | <file:line, output or link; for Disproved, why> |
+     ## Reality checks
+     - <unproven assumption> | How to test: <exact command or one-step check> | Who: manager / the user / probe
      ## Files I would have wanted
      - <path> | Why: <...>     (or "none")
-6. Write your memory entry in managers/codex/memory/codex-reviewer/MEMORY.md
+7. Write your memory entry in managers/codex/memory/codex-reviewer/MEMORY.md
    (Lessons first, then the Log, newest first):
      ### P<N> | codex-reviewer | <start>-<end> (<minutes> min)
      - Files given: <count>
      - Verdicts: Keep <n>, Maybe <n>, Reject <n>
      - Compatibility findings: <count by severity, top three in one line each>
-     - Kept by Claude (from the previous Summary's Planning outcome): <... or "unknown">
+     - Disproof: <proven n, disproved n, unproven n>
+     - Kept in the merge (from the previous Summary's Planning outcome): <... or "unknown">
      - Lesson candidate: <or "none">
    Add a Lesson only when it would change how you review in a later phase, for
    example when a problem showed up later in an area you marked Keep.
-7. Reply to the manager with one line: the path of your file, the verdict counts
-   and the number of findings by severity.
+8. Reply to the manager with one line: the path of your file, the verdict counts,
+   the number of findings by severity and the disproof counts.
 
 Never run commands that change files or git state, and never install anything.
 Never open managers/claude/.

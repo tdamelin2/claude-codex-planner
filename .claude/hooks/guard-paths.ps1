@@ -1,24 +1,32 @@
 # guard-paths.ps1
 # PreToolUse hook for the Edit, Write and Read tools, set in each agent's frontmatter.
 # Allows a write only when the target is inside the calling agent's allowed paths.
-#   manager : handoffs/, reviews/, managers/claude/, Questions.md,
+#   manager : handoffs/, reviews/, managers/claude/, managers/shared/, Questions.md,
 #             .claude/agent-memory/manager/
 #   coder-a : paths on the last "Part A folders:" line of the active phase file,
 #             the active phase file, .claude/agent-memory/coder-a/
 #   coder-b : same, with "Part B folders:"
 #   tester  : tests/, logs/, the active phase file, .claude/agent-memory/tester/
-#   telegram-liaison : managers/claude/, .claude/agent-memory/telegram-liaison/
 #             During a review (no active phase file, an active reviews/review-*.md):
 #             logs/, the active review file, .claude/agent-memory/tester/
+#   claude-researcher, claude-reviewer : managers/claude/plans/, their own memory
+#   cleanup : .claude/agent-memory/<agent>/MEMORY.md and log-archive.md only,
+#             Environment.md, managers/claude/cleanup/
 # Extra rules for the manager:
-#   Gate  : handoffs/phase-N.md may be written only after the planning gate:
-#           managers/claude/plans/phase-N/DONE exists, and either
-#           managers/codex/plans/phase-N/DONE or
-#           managers/claude/plans/phase-N/SKIP-codex exists. Phases that existed
+#   Gate  : handoffs/phase-N.md may be created only after the merge (the MERGED
+#           part applies to creating the file; the DONE part to every write):
+#           managers/claude/plans/phase-N/DONE exists, either
+#           managers/codex/plans/phase-N/DONE or managers/claude/plans/phase-N/SKIP-codex
+#           exists, and either managers/codex/plans/phase-N/MERGED or
+#           managers/claude/plans/phase-N/SKIP-codex-merge exists. Phases that existed
 #           before two-manager planning (phase file present, no planning folder)
 #           are not gated.
-#   Blind : the manager may not Read managers/codex/plans/phase-N/ until
-#           managers/claude/plans/phase-N/DONE exists.
+# Blind rule (manager, claude-researcher, claude-reviewer):
+#   - no Read of managers/codex/plans/phase-N/ until managers/claude/plans/phase-N/DONE
+#     exists;
+#   - no Read of managers/codex/memory/ while any managers/claude/plans/phase-N/
+#     folder has no DONE (Claude is planning; Codex's notes are read from the notes
+#     tag with git show instead).
 # Read calls are checked only for the blind rule; every other Read is allowed.
 # When the session runs as --agent manager, this hook can also fire for tool calls
 # made inside subagents. The hook input's agent_type names the agent that made the
@@ -89,7 +97,7 @@ function Get-PartPaths([System.IO.FileInfo]$PhaseFile, [string]$Part) {
         if ($p.StartsWith('(')) { continue }                 # template note
         if ($p.StartsWith('/') -or $p -match '^[A-Za-z]:') { continue }  # absolute paths are not allowed
         if ($p -match '(^|/)\.\.(/|$)') { continue }          # no parent-folder paths
-        if ($p -match '^(tests|logs|handoffs|reviews|managers|\.claude|\.agents|\.codex|scripts)(/|$)') { continue }  # never a coder's folder
+        if ($p -match '^(tests|logs|handoffs|reviews|managers|archive|\.claude|\.agents|\.codex|scripts)(/|$)') { continue }  # never a coder's folder
         if ($p -match '^(Questions\.md|AGENTS\.md|CLAUDE\.md|Overview\.md|phases\.md)$') { continue }
         $result += $p
     }
@@ -110,6 +118,24 @@ function Test-PlanReady([string]$Root, [string]$Phase, [string]$Ai) {
     $skip = Join-Path $Root "managers/claude/plans/phase-$Phase/SKIP-$Ai"
     return ((Test-Path -LiteralPath $plans) -or (Test-Path -LiteralPath $skip))
 }
+
+function Test-MergeReady([string]$Root, [string]$Phase) {
+    $merged = Join-Path $Root "managers/codex/plans/phase-$Phase/MERGED"
+    $skip = Join-Path $Root "managers/claude/plans/phase-$Phase/SKIP-codex-merge"
+    return ((Test-Path -LiteralPath $merged) -or (Test-Path -LiteralPath $skip))
+}
+
+function Test-ClaudePlanning([string]$Root) {
+    # True while any Claude planning folder has no DONE file yet.
+    $dir = Join-Path $Root 'managers/claude/plans'
+    if (-not (Test-Path -LiteralPath $dir)) { return $false }
+    foreach ($d in @(Get-ChildItem -LiteralPath $dir -Directory -Filter 'phase-*')) {
+        if (-not (Test-Path -LiteralPath (Join-Path $d.FullName 'DONE'))) { return $true }
+    }
+    return $false
+}
+
+$blindAgents = @('manager', 'claude-researcher', 'claude-reviewer')
 
 $isRead = $false
 
@@ -146,15 +172,18 @@ try {
     $rel = $null
     if ($inside) { $rel = $full.Substring($rootFull.Length + 1) }
 
-    # --- Read: only the blind rule applies, and only to the manager ------------
+    # --- Read: only the blind rule applies, and only to the planning agents ----
     if ($isRead) {
-        if ($Agent -ne 'manager' -or -not $inside) { exit 0 }
-        if ($rel -match '^managers/(codex)/plans/phase-(\d+)(/|$)') {
-            $n = $Matches[2]
+        if (($blindAgents -notcontains $Agent) -or -not $inside) { exit 0 }
+        if ($rel -match '^managers/codex/plans/phase-(\d+)(/|$)') {
+            $n = $Matches[1]
             $own = Join-Path $root "managers/claude/plans/phase-$n/DONE"
             if (-not (Test-Path -LiteralPath $own)) {
-                Stop-Call "you may not read the $($Matches[1]) plan for phase $n until your own plan is finished (managers/claude/plans/phase-$n/DONE). Plan blind first."
+                Stop-Call "you may not read the Codex plan for phase $n until the Claude plan is finished (managers/claude/plans/phase-$n/DONE). Plan blind first."
             }
+        }
+        if ($rel -match '^managers/codex/memory(/|$)' -and (Test-ClaudePlanning $root)) {
+            Stop-Call 'while Claude is planning, read Codex notes only from the notes tag (git show phase-<N-1>-notes:managers/codex/memory/<agent>/MEMORY.md), never from the working copy.'
         }
         exit 0
     }
@@ -167,7 +196,7 @@ try {
     $memory = ".claude/agent-memory/$Agent/"
     $phase = $null
     $review = $null
-    if ($Agent -ne 'manager' -and $Agent -ne 'telegram-liaison') {
+    if (@('coder-a', 'coder-b', 'tester') -contains $Agent) {
         $phase = Get-ActivePhaseFile $root
         if (-not $phase -and $Agent -eq 'tester') { $review = Get-ActiveReviewFile $root }
         if (-not $phase -and -not $review) {
@@ -176,8 +205,14 @@ try {
     }
 
     switch ($Agent) {
-        'manager' { $allowed = @('handoffs/', 'reviews/', 'managers/claude/', 'Questions.md', $memory) }
-        'telegram-liaison' { $allowed = @('managers/claude/', $memory) }
+        'manager' { $allowed = @('handoffs/', 'reviews/', 'managers/claude/', 'managers/shared/', 'Questions.md', $memory) }
+        'claude-researcher' { $allowed = @('managers/claude/plans/', $memory) }
+        'claude-reviewer'   { $allowed = @('managers/claude/plans/', $memory) }
+        'cleanup'           {
+            # Only notes files: never the user's feedback_*.md or project_*.md files.
+            $allowed = @('Environment.md', 'managers/claude/cleanup/')
+            if ($rel -match '^\.claude/agent-memory/[^/]+/(MEMORY|log-archive)\.md$') { $allowed += $rel }
+        }
         'tester'  {
             if ($phase) { $allowed = @('tests/', 'logs/', "handoffs/$($phase.Name)", $memory) }
             else        { $allowed = @('logs/', "reviews/$($review.Name)", $memory) }
@@ -211,6 +246,11 @@ try {
             if ($missing.Count -gt 0) {
                 Stop-Call ("handoffs/phase-$n.md can't be written before the planning gate. Missing DONE for: " +
                     ($missing -join ', ') + '. Run scripts/wait-for-plans.ps1, or ask the user whether to continue without a missing manager.')
+            }
+            # The merge gate applies only to creating the file, so records of phases
+            # planned before Codex merged (no MERGED file) stay editable.
+            if (-not (Test-Path -LiteralPath $full) -and -not (Test-MergeReady $root $n)) {
+                Stop-Call "handoffs/phase-$n.md can't be written before the merge. Run scripts/codex-call.ps1 -Phase $n -Task merge, or, if Codex is unavailable, write managers/claude/plans/phase-$n/SKIP-codex-merge and merge yourself."
             }
         }
     }
