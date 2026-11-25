@@ -16,6 +16,7 @@ It's built for people who aren't programmers. The AIs talk to you in plain langu
 - **Shared notes.** Before planning, both sides read what both sides learned in earlier phases. Each still can't see the other's current plan.
 - **A cleanup helper** tidies every agent's notes after each phase and moves facts about your machines into one shared file, `Environment.md`.
 - **No Telegram.** Claude starts Codex by itself for each merge or decision (`scripts/codex-call.ps1`), and they talk through files. Codex is never left running, which saves usage.
+- **Two code reviews at the end of each phase.** Once the tests pass, Codex and Claude's code reviewer each read the phase's code changes for real bugs the tests don't cover, at the same time and without seeing each other's findings. Every problem either one proves gets fixed and re-tested.
 - **Works when Codex can't.** If Codex is out of usage, Claude makes that one decision itself, records it, and tells you.
 
 ---
@@ -48,6 +49,9 @@ It's built for people who aren't programmers. The AIs talk to you in plain langu
      Any change to the plan → Claude asks Codex in a file → Codex decides
      Still failing after round 3: Codex re-plans once, then you're asked
                                ▼
+     Code review: Codex and Claude review the code side by side (blind)
+     Proven bugs from either → fixed once → tester re-tests
+                               ▼
      Phase checked against the Definition of Done → committed and tagged
                                ▼
               Cleanup helper tidies every agent's notes
@@ -57,7 +61,7 @@ It's built for people who aren't programmers. The AIs talk to you in plain langu
 
 | Agent | Tool | Job |
 |---|---|---|
-| **Codex manager** | Codex CLI | The lead planner. Plans each phase on its own, merges both plans, and decides every change to the plan. Never writes code. |
+| **Codex manager** | Codex CLI | The lead planner. Plans each phase on its own, merges both plans, decides every change to the plan, and reviews the finished code. Never writes code. |
 | **phase_researcher** | Codex CLI | Proposes up to 5 creative ideas for the phase. |
 | **phase_reviewer** | Codex CLI | Checks each idea against the existing code, marks it Keep, Reject or Maybe, then tries to prove its own claims wrong. |
 | **Claude manager** | Claude Code | Plans each phase on its own, then runs the build rounds exactly to the merged plan and checks the result. Owns git. Never edits code itself. |
@@ -66,6 +70,7 @@ It's built for people who aren't programmers. The AIs talk to you in plain langu
 | **coder-a / coder-b** | Claude Code | Build the phase. One coder by default; two only when the phase has two separate parts, such as a backend and a frontend. |
 | **tester** | Claude Code | Writes acceptance tests from your criteria (not from the code) and runs the whole test suite. |
 | **debugger** | Claude Code | Finds the root cause of a failure and writes a fix plan. Never fixes code itself. |
+| **code-reviewer** | Claude Code | Once the tests pass, reviews the phase's code for bugs the tests don't cover, alongside Codex's own review and without seeing it. Never fixes code. |
 | **cleanup** | Claude Code | After each phase, archives notes that no longer matter, merges duplicates and moves machine facts to `Environment.md`. Never deletes. |
 
 ---
@@ -146,7 +151,7 @@ When Claude shows you the merged plan, reply `go` to start building, or say what
 | `AGENTS.md` | Rules for the Codex manager and its helpers |
 | `SETUP.md` | Step-by-step setup guide |
 | `Questions.md` | Every planning question and how it was answered |
-| `.claude/agents/` | The Claude agents: manager, claude-researcher, claude-reviewer, coder-a, coder-b, tester, debugger, cleanup |
+| `.claude/agents/` | The Claude agents: manager, claude-researcher, claude-reviewer, coder-a, coder-b, tester, debugger, code-reviewer, cleanup |
 | `.claude/skills/` | The `/start`, `/continue` and `/review` commands |
 | `.claude/hooks/` | Safety hooks: path guard, dangerous-command blocker, clean-tree check, auto-format |
 | `.claude/agent-memory/` | Each Claude agent's lessons and log |

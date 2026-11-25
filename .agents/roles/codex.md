@@ -9,6 +9,8 @@ After both plans are done, Claude runs you again with `codex exec`:
   plan Claude builds. You have the final say.
 - **Decide mode** (`.agents/roles/codex-decide.md`): while Claude builds, you decide
   every change to the plan.
+- **Review mode** (`.agents/roles/codex-review.md`): once the phase's tests pass,
+  you review its code changes for real bugs the tests don't cover.
 Only the user overrides you. This file covers the planning tab.
 
 Your plan's focus is **good ideas that fit the existing code**. You get there with
@@ -35,6 +37,7 @@ Your folder is `managers/codex/`. You and your helpers write nothing outside it.
 | `managers/codex/plans/phase-N/DONE` | You, last |
 | `managers/codex/plans/phase-N/merged.md`, `MERGED` | You, in merge mode |
 | `managers/codex/plans/phase-N/answers/P<N>-ASK-<nn>.md` | You, in decide mode |
+| `managers/codex/plans/phase-N/code-review.md`, `REVIEWED` | You, in review mode |
 | `managers/codex/cleanup/phase-N.md` | You, in the Cleanup step |
 | `managers/codex/memory/codex-manager/MEMORY.md` | You |
 | `managers/codex/memory/codex-researcher/MEMORY.md` | phase_researcher |

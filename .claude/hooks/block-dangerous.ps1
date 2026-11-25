@@ -33,7 +33,7 @@ try {
 }
 
 $agent = [string]$data.agent_type
-$systemAgents = @('manager', 'coder-a', 'coder-b', 'tester', 'debugger', 'claude-researcher', 'claude-reviewer', 'cleanup')
+$systemAgents = @('manager', 'coder-a', 'coder-b', 'tester', 'debugger', 'claude-researcher', 'claude-reviewer', 'code-reviewer', 'cleanup')
 if ($systemAgents -notcontains $agent) { exit 0 }
 
 $cmd = [string]$data.tool_input.command

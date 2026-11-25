@@ -43,13 +43,20 @@ terminals. Inside Claude it runs `/start N claude`, `/continue N claude` or
    change to the plan is an ask in `managers/shared/phase-N/asks.md`, answered
    by Codex in `managers/codex/plans/phase-N/answers/` (`scripts/codex-call.ps1
    -Task decide`). The re-plan after Round 3 is decided by Codex too.
-10. **Cleanup**: after the phase is Done, the cleanup helper tidies every Claude
+10. **Code review**: once the tests pass, Codex (`scripts/codex-call.ps1 -Task
+    review`) and Claude's code-reviewer each read the phase's code changes for real
+    bugs the tests don't cover, at the same time and without seeing each other's
+    findings. Both follow `.agents/roles/codex-review.md`. The manager combines them:
+    every Proven Blocking finding from either side is fixed once (`## Review fixes`)
+    and the tests re-run. If one reviewer can't run, the other's review is used
+    alone. Then Verify.
+11. **Cleanup**: after the phase is Done, the cleanup helper tidies every Claude
     agent's notes, then Claude tags `phase-N-notes`. Codex tidies its own notes at
     the start of the next phase.
 
 ## Disproof
-Every reviewer (claude-reviewer, phase_reviewer, and Codex in merge and decide
-runs) ends by trying to prove each of its own claims wrong. Each claim becomes
+Every reviewer (claude-reviewer, phase_reviewer, code-reviewer, and Codex in merge,
+decide and code-review runs) ends by trying to prove each of its own claims wrong. Each claim becomes
 Proven (with evidence: file:line, command output or doc link), Disproved (dropped)
 or Unproven (listed as a Reality check with the cheapest test).
 
@@ -119,6 +126,8 @@ the coders and tester run them from there.
 6. No TODOs, stubs, placeholders or debug prints remain in this phase's code.
 7. Every Report block in `handoffs/phase-N.md` is filled in, every Reality check has
    a Result, and the Summary (including its Planning outcome) is written.
+8. The `## Code review` section exists, and every Proven Blocking finding in it was
+   fixed and re-tested.
 
 ## Talking to the user
 The user has no programming experience. Everything the manager says to them, and every

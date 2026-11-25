@@ -115,6 +115,8 @@ End your turn with: "Reply 'go' to continue, or tell me what to change."
   | Code or Test, Round 4 (re-plan) | Step 7, at the matching point of steps 2 to 4 |
   | Test | Step 4. Resend the Test Task if its Report isn't filled in; otherwise act on the Result |
   | Debug | Step 5. Resend the Debug Task if its Report isn't filled in; otherwise route the failures |
+  | Review | Step 5b. Resend the code-reviewer if its Report placeholder is still there, and run the Codex review call again (it reattaches or finishes); if `### Combined` is already written, act on its Result |
+  | Code, with a `## Review fixes` section | Step 5b, at "Run the coders", for the -RV Code Tasks not finished |
   | Verify | Step 6 |
   | Plan | Step 7 |
   | Escalated | Whatever the user decided |

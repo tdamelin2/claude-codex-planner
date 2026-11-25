@@ -18,7 +18,10 @@ and you never run the coding rounds.
   Follow `.agents/roles/codex-merge.md`.
 - **Decide run**: Claude starts you with `codex exec` when the plan needs to change
   while it builds. Follow `.agents/roles/codex-decide.md`.
-A merge or decide run is fresh: it remembers nothing from earlier runs. Everything
+- **Review run**: once a phase's tests pass, Claude starts you with `codex exec` to
+  review the phase's code changes for real bugs, while Claude's own code-reviewer
+  reviews them separately. Follow `.agents/roles/codex-review.md`.
+A merge, decide or review run is fresh: it remembers nothing from earlier runs. Everything
 it needs is in the files, so read them.
 
 Your two planning helpers are custom agents in `.codex/agents/`:
@@ -48,7 +51,8 @@ The Codex manager chooses which files each helper reads.
 4. The machine is Windows. Shell commands use PowerShell syntax: chain them with
    `;`, not `&&`. Get timestamps with `Get-Date -Format "yyyy-MM-dd HH:mm"`.
 5. Write each marker file last: `DONE` after your plan and memory entry, `MERGED`
-   after `merged.md`, and an answer file only when the answer is complete. Claude
+   after `merged.md`, `REVIEWED` after `code-review.md`, and an answer file only
+   when the answer is complete. Claude
    waits for them. After writing a marker, never change the file it marks. Notes
    kept only inside your tool (chat, task lists) don't count, because Claude can't
    see them.

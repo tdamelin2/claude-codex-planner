@@ -1,10 +1,12 @@
 # codex-call.ps1
-# Runs the Codex manager once, non-interactively, for a merge or a decision, and
-# waits for its answer file. The Claude manager runs this; Codex is never left open.
+# Runs the Codex manager once, non-interactively, for a merge, a decision or the
+# end-of-phase code review, and waits for its answer file. The Claude manager runs
+# this; Codex is never left open.
 #
 # Usage (from the project folder):
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/codex-call.ps1 -Phase 30 -Task merge
 #   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/codex-call.ps1 -Phase 30 -Task decide -Ask P30-ASK-01
+#   powershell -NoProfile -ExecutionPolicy Bypass -File scripts/codex-call.ps1 -Phase 30 -Task review
 #
 # Codex runs with `codex exec` in its usual codex-planner profile from
 # .codex/config.toml (writes only managers/codex/, may never read managers/claude/),
@@ -18,8 +20,9 @@
 # Answer files (Codex writes them last):
 #   merge  : managers/codex/plans/phase-N/MERGED       (merged.md next to it)
 #   decide : managers/codex/plans/phase-N/answers/<Ask>.md
-# Run state : managers/claude/plans/phase-N/calls/<merge|Ask>.json
-# Run logs  : logs/codex/phase-N-<merge|Ask>-<attempt>.log   (not committed)
+#   review : managers/codex/plans/phase-N/REVIEWED     (code-review.md next to it)
+# Run state : managers/claude/plans/phase-N/calls/<merge|Ask|review>.json
+# Run logs  : logs/codex/phase-N-<merge|Ask|review>-<attempt>.log   (not committed)
 #
 # Running the same command again while Codex is still working reattaches to that
 # run; it never starts a second Codex. A run that ends without its answer file is
@@ -34,7 +37,7 @@
 
 param(
     [Parameter(Mandatory = $true)][int]$Phase,
-    [Parameter(Mandatory = $true)][ValidateSet('merge', 'decide')][string]$Task,
+    [Parameter(Mandatory = $true)][ValidateSet('merge', 'decide', 'review')][string]$Task,
     [string]$Ask = '',
     [int]$MaxWaitMinutes = 9,
     [int]$PollSeconds = 15,
@@ -67,6 +70,10 @@ if ($Task -eq 'merge') {
     $id = 'merge'
     $marker = Join-Path $codexDir 'MERGED'
     $prompt = "Merge phase $Phase. Follow .agents/roles/codex-merge.md."
+} elseif ($Task -eq 'review') {
+    $id = 'review'
+    $marker = Join-Path $codexDir 'REVIEWED'
+    $prompt = "Review phase $Phase. Follow .agents/roles/codex-review.md."
 } else {
     if ($Ask -notmatch "^P$Phase-ASK-\d{2,}$") {
         Exit-With 2 "-Ask must look like P$Phase-ASK-01 for phase $Phase."
@@ -95,6 +102,16 @@ if ($Task -eq 'merge') {
     if (-not (Test-Path -LiteralPath $copyDir)) { $null = New-Item -ItemType Directory -Path $copyDir }
     foreach ($f in @(Get-ChildItem -LiteralPath $claudeDir -File)) {
         Copy-Item -LiteralPath $f.FullName -Destination (Join-Path $copyDir $f.Name) -Force
+    }
+} elseif ($Task -eq 'review') {
+    if (-not (Test-Path -LiteralPath (Join-Path $root "handoffs/phase-$Phase.md"))) {
+        Exit-With 2 "handoffs/phase-$Phase.md doesn't exist, so there is nothing to review."
+    }
+    $ErrorActionPreference = 'Continue'
+    $startTag = @(& git -C $root tag --list "phase-$Phase-start" 2>$null)
+    $ErrorActionPreference = 'Stop'
+    if ($startTag.Count -eq 0) {
+        Exit-With 2 "the tag phase-$Phase-start is missing, so Codex can't see what this phase changed."
     }
 } else {
     $asksFile = Join-Path $sharedDir 'asks.md'

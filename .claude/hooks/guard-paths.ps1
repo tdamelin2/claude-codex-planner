@@ -10,6 +10,8 @@
 #             During a review (no active phase file, an active reviews/review-*.md):
 #             logs/, the active review file, .claude/agent-memory/tester/
 #   claude-researcher, claude-reviewer : managers/claude/plans/, their own memory
+#   code-reviewer : the active phase file, .claude/agent-memory/code-reviewer/
+#             (it may not Read managers/codex/plans/phase-N/code-review.md)
 #   cleanup : .claude/agent-memory/<agent>/MEMORY.md and log-archive.md only,
 #             Environment.md, managers/claude/cleanup/
 # Extra rules for the manager:
@@ -172,8 +174,13 @@ try {
     $rel = $null
     if ($inside) { $rel = $full.Substring($rootFull.Length + 1) }
 
-    # --- Read: only the blind rule applies, and only to the planning agents ----
+    # --- Read: only the blind rules apply ---------------------------------------
     if ($isRead) {
+        # Claude's code-reviewer must not see Codex's review of the same phase.
+        if ($Agent -eq 'code-reviewer' -and $inside -and
+            $rel -match '^managers/codex/plans/phase-\d+/code-review\.md$') {
+            Stop-Call "you may not read Codex's code review. The two reviews are independent."
+        }
         if (($blindAgents -notcontains $Agent) -or -not $inside) { exit 0 }
         if ($rel -match '^managers/codex/plans/phase-(\d+)(/|$)') {
             $n = $Matches[1]
@@ -196,7 +203,7 @@ try {
     $memory = ".claude/agent-memory/$Agent/"
     $phase = $null
     $review = $null
-    if (@('coder-a', 'coder-b', 'tester') -contains $Agent) {
+    if (@('coder-a', 'coder-b', 'tester', 'code-reviewer') -contains $Agent) {
         $phase = Get-ActivePhaseFile $root
         if (-not $phase -and $Agent -eq 'tester') { $review = Get-ActiveReviewFile $root }
         if (-not $phase -and -not $review) {
@@ -206,6 +213,7 @@ try {
 
     switch ($Agent) {
         'manager' { $allowed = @('handoffs/', 'reviews/', 'managers/claude/', 'managers/shared/', 'Questions.md', $memory) }
+        'code-reviewer'     { $allowed = @("handoffs/$($phase.Name)", $memory) }
         'claude-researcher' { $allowed = @('managers/claude/plans/', $memory) }
         'claude-reviewer'   { $allowed = @('managers/claude/plans/', $memory) }
         'cleanup'           {
